@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mermaid Viewer</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        
+        // Mermaidの初期設定
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+        window.onload = async () => {
+            // URLからパラメータを取得
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedCode = urlParams.get('code');
+            const container = document.getElementById('graphDiv');
+
+            if (encodedCode) {
+                // クリップボードのテキストをデコード
+                const decodedCode = decodeURIComponent(encodedCode);
+                try {
+                    // Mermaidの図をレンダリング
+                    const { svg } = await mermaid.render('mermaid-svg', decodedCode);
+                    container.innerHTML = svg;
+                } catch (error) {
+                    container.innerHTML = `<p style="color:red; font-size: 14px;">描画エラー:<br>${error}</p>`;
+                }
+            } else {
+                container.innerHTML = '<p style="color: gray;">クリップボードにMermaidコードが見つかりません。</p>';
+            }
+        };
+    </script>
+    <style>
+        body { 
+            margin: 0; padding: 20px; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; background-color: #fcfcfc; 
+        }
+        #graphDiv { 
+            max-width: 100%; overflow: auto; 
+        }
+    </style>
+</head>
+<body>
+    <div id="graphDiv">Loading...</div>
+</body>
+</html>
