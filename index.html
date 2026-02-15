@@ -1,43 +1,10 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mermaid Viewer</title>
-    <style>
-        body { 
-            margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; 
-            min-height: 100vh; 
-            background-color: #f8f9fa; background-image: radial-gradient(#ced4da 1px, transparent 1px); background-size: 20px 20px; 
-            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-        }
-        #graphDiv { 
-            background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); 
-            padding: 40px; border-radius: 24px; border: 1px solid #f1f3f5; box-shadow: 0 12px 48px rgba(0, 0, 0, 0.06); 
-            max-width: 100%; overflow: auto; display: flex; justify-content: center; flex-direction: column;
-        }
-        .error-msg { color: #ff3b30; font-size: 14px; font-weight: 500; word-break: break-all; margin-bottom: 12px; }
-        .empty-msg { color: #868e96; font-size: 15px; font-weight: 500; letter-spacing: 0.5px;}
-        /* エラー解析用のデバッグコンソール表示 */
-        .debug-log { background: #212529; color: #40c057; padding: 16px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; width: 100%; box-sizing: border-box; overflow-x: auto; line-height: 1.4;}
-    </style>
-</head>
-<body>
-    <div id="graphDiv">
-        <svg id="spinner" width="40" height="40" viewBox="0 0 50 50">
-            <path fill="#adb5bd" d="M25,5A20.14,20.14,0,0,1,45,22.88V25A20,20,0,1,1,5,25V22.88A20.14,20.14,0,0,1,25,5m0-5A25,25,0,1,0,50,25,25,25,0,0,0,25,0Z">
-                <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
-            </path>
-        </svg>
-    </div>
-
-    <script type="module">
+<script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
         const container = document.getElementById('graphDiv');
 
         (async () => {
-            let sanitizedCode = ""; // エラー時にも参照できるようスコープを外に定義
+            let sanitizedCode = ""; 
             try {
                 mermaid.initialize({ 
                     startOnLoad: false, 
@@ -60,20 +27,25 @@
                     return;
                 }
 
-                // 念のためのデコード処理
                 try { rawCode = decodeURIComponent(rawCode); } catch (e) {}
 
-                // ★ 究極のサニタイズ ★
+                // ★ 究極のサニタイズ（スマート句読点対応 ＋ コメント抹消） ★
                 sanitizedCode = rawCode
-                    // 1. iOS特有の行区切り(\u2028)・段落区切り(\u2029)を \n に完全置換 (これが今回の元凶)
+                    // 1. iOSのスマート句読点（勝手に変換されるハイフンやクォート）を標準記号に戻す
+                    .replace(/[–—]/g, '-')
+                    .replace(/[“”]/g, '"')
+                    .replace(/[‘’]/g, "'")
+                    // 2. 改行コードの統一
                     .replace(/\r\n|\r|\u2028|\u2029/g, '\n')
-                    // 2. NBSPや全角スペースを半角スペースに
+                    // 3. 全角スペースやNBSPを半角に
                     .replace(/[\u00A0\u3000]/g, ' ')
-                    // 3. ゼロ幅文字やBOMを完全排除
+                    // 4. ゼロ幅文字やBOMを完全排除
                     .replace(/[\u200B-\u200D\uFEFF]/g, '')
-                    // 4. 行末の空白を取り除き、空行を削除
                     .split('\n')
                     .map(line => line.trimEnd())
+                    // 5. パーサーをバグらせる原因になるコメント行 (%%) をレンダリング前に消し去る
+                    .filter(line => !line.trim().startsWith('%%'))
+                    // 6. 空行を削除して詰める
                     .filter(line => line.trim().length > 0)
                     .join('\n');
 
@@ -83,7 +55,6 @@
                 container.innerHTML = svg;
 
             } catch (error) {
-                // エラー内容と、サニタイズ後の「実際にパースしようとした文字列」を黒背景で表示
                 container.innerHTML = `
                     <div class="error-msg">レンダリングエラー:<br>${error.message}</div>
                     <div class="debug-log">【デバッグログ: 変換後のコード】\n${sanitizedCode}</div>
@@ -91,5 +62,3 @@
             }
         })();
     </script>
-</body>
-</html>
