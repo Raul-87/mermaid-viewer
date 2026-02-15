@@ -4,72 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mermaid Viewer</title>
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        
-        // 1. デザイン設定の最適化（テーマとフォント）
-        mermaid.initialize({ 
-            startOnLoad: false, 
-            theme: 'neutral', // default, forest, dark, neutral, base から選択可能
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif',
-            securityLevel: 'loose',
-        });
-
-        window.onload = async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const encodedCode = urlParams.get('code');
-            const container = document.getElementById('graphDiv');
-
-            if (encodedCode) {
-                const decodedCode = decodeURIComponent(encodedCode);
-                try {
-                    const { svg } = await mermaid.render('mermaid-svg', decodedCode);
-                    container.innerHTML = svg;
-                } catch (error) {
-                    container.innerHTML = `<div class="error-msg">構文エラー:<br>${error.message}</div>`;
-                }
-            } else {
-                container.innerHTML = '<div class="empty-msg">Mermaidコードをコピーして背面タップしてください</div>';
-            }
-        };
-    </script>
     <style>
-        /* 2. iOSネイティブアプリ風のUIスタイリング */
         body { 
-            margin: 0; 
-            padding: 20px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
-            background-color: #f2f2f7; /* iOS標準の背景グレー */
-            font-family: -apple-system, sans-serif;
+            margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; background-color: #f2f2f7; font-family: -apple-system, sans-serif;
         }
-        
-        /* 3. 図を配置するカードのデザイン */
         #graphDiv { 
-            background-color: #ffffff;
-            padding: 24px;
-            border-radius: 16px; /* 角丸 */
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); /* 美しいドロップシャドウ */
-            max-width: 100%; 
-            overflow: auto; 
-            display: flex;
-            justify-content: center;
+            background-color: #ffffff; padding: 24px; border-radius: 16px; 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); max-width: 100%; overflow: auto; 
+            display: flex; justify-content: center;
         }
-
-        /* エラーや空の時のテキストスタイル */
-        .error-msg { color: #ff3b30; font-size: 14px; font-weight: 500;}
-        .empty-msg { color: #8e8e93; font-size: 15px; font-weight: 500;}
+        .error-msg { color: #ff3b30; font-size: 14px; font-weight: 500; word-break: break-all; }
+        .empty-msg { color: #8e8e93; font-size: 15px; font-weight: 500; }
     </style>
 </head>
 <body>
     <div id="graphDiv">
-        <svg width="40" height="40" viewBox="0 0 50 50">
+        <svg id="spinner" width="40" height="40" viewBox="0 0 50 50">
             <path fill="#c7c7cc" d="M25,5A20.14,20.14,0,0,1,45,22.88V25A20,20,0,1,1,5,25V22.88A20.14,20.14,0,0,1,25,5m0-5A25,25,0,1,0,50,25,25,25,0,0,0,25,0Z">
                 <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
             </path>
         </svg>
     </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+        const container = document.getElementById('graphDiv');
+
+        // 非同期処理を即時実行（ロード待ちによるフリーズを回避）
+        (async () => {
+            try {
+                // Mermaidの初期設定
+                mermaid.initialize({ 
+                    startOnLoad: false, 
+                    theme: 'neutral',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif',
+                    securityLevel: 'loose',
+                });
+
+                // URLからパラメータを取得
+                const urlParams = new URLSearchParams(window.location.search);
+                const encodedCode = urlParams.get('code');
+
+                if (!encodedCode) {
+                    container.innerHTML = '<div class="empty-msg">Mermaidコードをコピーして背面タップしてください</div>';
+                    return;
+                }
+
+                // デコード処理（ここでのエラーもキャッチできるようにtryの中に配置）
+                const decodedCode = decodeURIComponent(encodedCode);
+                
+                // 複数回呼び出された際のキャッシュバグを防ぐため、毎回ユニークなIDを付与
+                const uniqueId = 'mermaid-' + Date.now();
+                
+                // レンダリング実行
+                const { svg } = await mermaid.render(uniqueId, decodedCode);
+                
+                // 無事に生成されたらローディング画面と差し替え
+                container.innerHTML = svg;
+
+            } catch (error) {
+                // どんなエラーが起きても、無限ロードで止まらずに画面にエラー理由を赤文字で表示する
+                container.innerHTML = `<div class="error-msg">レンダリングエラー:<br>${error.message}</div>`;
+            }
+        })();
+    </script>
 </body>
 </html>
