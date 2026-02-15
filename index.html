@@ -61,8 +61,20 @@
                     return;
                 }
 
-                // 【改修ポイント】全角スペースやNBSP（特殊スペース）をすべて標準の半角スペースに置換して無害化
-                const sanitizedCode = rawCode.replace(/[\u00A0\u3000]/g, ' ');
+                // 👇 ここから修正
+                const sanitizedCode = rawCode
+                    // 1. 改行コードを \n に統一 (iOS特有の \r\n や \r を \n に変換)
+                    .replace(/\r\n|\r/g, '\n')
+                    // 2. NBSPや全角スペースを半角スペースに置換
+                    .replace(/[\u00A0\u3000]/g, ' ')
+                    // 3. ゼロ幅スペースやBOMなどの不可視文字を削除
+                    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                    // 4. 行単位でのクリーニング
+                    .split('\n')
+                    .map(line => line.trimEnd()) // 行末の不要なスペースや制御文字を削除
+                    .filter(line => line.trim().length > 0) // 空行を削除してパースエラーを防止
+                    .join('\n');
+                // 👆 ここまで修正
 
                 const uniqueId = 'mermaid-' + Date.now();
                 const { svg } = await mermaid.render(uniqueId, sanitizedCode);
