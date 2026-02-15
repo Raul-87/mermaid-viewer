@@ -32,10 +32,8 @@
 
         const container = document.getElementById('graphDiv');
 
-        // 非同期処理を即時実行（ロード待ちによるフリーズを回避）
         (async () => {
             try {
-                // Mermaidの初期設定
                 mermaid.initialize({ 
                     startOnLoad: false, 
                     theme: 'neutral',
@@ -43,29 +41,22 @@
                     securityLevel: 'loose',
                 });
 
-                // URLからパラメータを取得
                 const urlParams = new URLSearchParams(window.location.search);
-                const encodedCode = urlParams.get('code');
+                
+                // 【修正点】URLSearchParamsは自動でデコード済みのテキストを返すため、そのまま使用します
+                const mermaidCode = urlParams.get('code');
 
-                if (!encodedCode) {
+                if (!mermaidCode) {
                     container.innerHTML = '<div class="empty-msg">Mermaidコードをコピーして背面タップしてください</div>';
                     return;
                 }
 
-                // デコード処理（ここでのエラーもキャッチできるようにtryの中に配置）
-                const decodedCode = decodeURIComponent(encodedCode);
-                
-                // 複数回呼び出された際のキャッシュバグを防ぐため、毎回ユニークなIDを付与
                 const uniqueId = 'mermaid-' + Date.now();
+                const { svg } = await mermaid.render(uniqueId, mermaidCode);
                 
-                // レンダリング実行
-                const { svg } = await mermaid.render(uniqueId, decodedCode);
-                
-                // 無事に生成されたらローディング画面と差し替え
                 container.innerHTML = svg;
 
             } catch (error) {
-                // どんなエラーが起きても、無限ロードで止まらずに画面にエラー理由を赤文字で表示する
                 container.innerHTML = `<div class="error-msg">レンダリングエラー:<br>${error.message}</div>`;
             }
         })();
