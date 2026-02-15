@@ -5,25 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mermaid Viewer</title>
     <style>
-        /* 1. キャンバス風の背景デザイン */
         body { 
             margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; 
             min-height: 100vh; 
-            background-color: #f8f9fa;
-            background-image: radial-gradient(#ced4da 1px, transparent 1px);
-            background-size: 20px 20px; /* ドットグリッド */
+            background-color: #f8f9fa; background-image: radial-gradient(#ced4da 1px, transparent 1px); background-size: 20px 20px; 
             font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
         }
-        /* 2. メインのカードUI */
         #graphDiv { 
-            background-color: rgba(255, 255, 255, 0.95); 
-            backdrop-filter: blur(10px); /* すりガラス効果 */
-            padding: 40px; 
-            border-radius: 24px; 
-            border: 1px solid #f1f3f5;
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.06); /* 柔らかい影 */
-            max-width: 100%; overflow: auto; 
-            display: flex; justify-content: center;
+            background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); 
+            padding: 40px; border-radius: 24px; border: 1px solid #f1f3f5; box-shadow: 0 12px 48px rgba(0, 0, 0, 0.06); 
+            max-width: 100%; overflow: auto; display: flex; justify-content: center;
         }
         .error-msg { color: #ff3b30; font-size: 14px; font-weight: 500; word-break: break-all; }
         .empty-msg { color: #868e96; font-size: 15px; font-weight: 500; letter-spacing: 0.5px;}
@@ -45,41 +36,36 @@
 
         (async () => {
             try {
-                // 3. 良いダイアグラムの原則に基づくMermaidのグローバル設定
                 mermaid.initialize({ 
                     startOnLoad: false, 
-                    theme: 'base', // デフォルトを破棄してベースから再構築
+                    theme: 'base',
                     themeVariables: {
-                        // 洗練されたモノトーン・UI配色の適用
-                        primaryColor: '#ffffff',         // 箱の背景
-                        primaryTextColor: '#343a40',     // メインテキスト
-                        primaryBorderColor: '#dee2e6',   // 箱の枠線
-                        lineColor: '#adb5bd',            // 矢印の線
-                        secondaryColor: '#f8f9fa',       // サブの箱の背景
-                        tertiaryColor: '#f1f3f5',
-                        clusterBkg: '#f8f9fa',           // グループの背景色（ゲシュタルト要因）
-                        clusterBorder: '#e9ecef',        // グループの枠線
+                        primaryColor: '#ffffff', primaryTextColor: '#343a40', primaryBorderColor: '#dee2e6', lineColor: '#adb5bd', 
+                        secondaryColor: '#f8f9fa', tertiaryColor: '#f1f3f5', clusterBkg: '#f8f9fa', clusterBorder: '#e9ecef', 
                         fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif',
                     },
-                    flowchart: {
-                        curve: 'basis',     // 線の交差ノイズを減らす滑らかな曲線
-                        nodeSpacing: 70,    // 箱と箱の横の余白を大きく確保
-                        rankSpacing: 70,    // 箱と箱の縦の余白を大きく確保
-                        padding: 24
+                    flowchart: { curve: 'basis', nodeSpacing: 70, rankSpacing: 70, padding: 24 },
+                    gantt: { 
+                        // ガントチャート特有のデザイン調整（見やすさ向上）
+                        titleTopMargin: 25, barHeight: 25, barGap: 4, topPadding: 50, leftPadding: 75,
+                        gridLineStartPadding: 35, fontSize: 13, sectionFontSize: 14, numberSectionStyles: 4
                     },
                     securityLevel: 'loose',
                 });
 
                 const urlParams = new URLSearchParams(window.location.search);
-                const mermaidCode = urlParams.get('code');
+                const rawCode = urlParams.get('code');
 
-                if (!mermaidCode) {
+                if (!rawCode) {
                     container.innerHTML = '<div class="empty-msg">Mermaidコードをコピーして背面タップしてください</div>';
                     return;
                 }
 
+                // 【改修ポイント】全角スペースやNBSP（特殊スペース）をすべて標準の半角スペースに置換して無害化
+                const sanitizedCode = rawCode.replace(/[\u00A0\u3000]/g, ' ');
+
                 const uniqueId = 'mermaid-' + Date.now();
-                const { svg } = await mermaid.render(uniqueId, mermaidCode);
+                const { svg } = await mermaid.render(uniqueId, sanitizedCode);
                 
                 container.innerHTML = svg;
 
