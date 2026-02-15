@@ -5,23 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mermaid Viewer</title>
     <style>
+        /* 1. キャンバス風の背景デザイン */
         body { 
             margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; 
-            min-height: 100vh; background-color: #f2f2f7; font-family: -apple-system, sans-serif;
+            min-height: 100vh; 
+            background-color: #f8f9fa;
+            background-image: radial-gradient(#ced4da 1px, transparent 1px);
+            background-size: 20px 20px; /* ドットグリッド */
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
         }
+        /* 2. メインのカードUI */
         #graphDiv { 
-            background-color: #ffffff; padding: 24px; border-radius: 16px; 
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); max-width: 100%; overflow: auto; 
+            background-color: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(10px); /* すりガラス効果 */
+            padding: 40px; 
+            border-radius: 24px; 
+            border: 1px solid #f1f3f5;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.06); /* 柔らかい影 */
+            max-width: 100%; overflow: auto; 
             display: flex; justify-content: center;
         }
         .error-msg { color: #ff3b30; font-size: 14px; font-weight: 500; word-break: break-all; }
-        .empty-msg { color: #8e8e93; font-size: 15px; font-weight: 500; }
+        .empty-msg { color: #868e96; font-size: 15px; font-weight: 500; letter-spacing: 0.5px;}
     </style>
 </head>
 <body>
     <div id="graphDiv">
         <svg id="spinner" width="40" height="40" viewBox="0 0 50 50">
-            <path fill="#c7c7cc" d="M25,5A20.14,20.14,0,0,1,45,22.88V25A20,20,0,1,1,5,25V22.88A20.14,20.14,0,0,1,25,5m0-5A25,25,0,1,0,50,25,25,25,0,0,0,25,0Z">
+            <path fill="#adb5bd" d="M25,5A20.14,20.14,0,0,1,45,22.88V25A20,20,0,1,1,5,25V22.88A20.14,20.14,0,0,1,25,5m0-5A25,25,0,1,0,50,25,25,25,0,0,0,25,0Z">
                 <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
             </path>
         </svg>
@@ -34,16 +45,32 @@
 
         (async () => {
             try {
+                // 3. 良いダイアグラムの原則に基づくMermaidのグローバル設定
                 mermaid.initialize({ 
                     startOnLoad: false, 
-                    theme: 'neutral',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif',
+                    theme: 'base', // デフォルトを破棄してベースから再構築
+                    themeVariables: {
+                        // 洗練されたモノトーン・UI配色の適用
+                        primaryColor: '#ffffff',         // 箱の背景
+                        primaryTextColor: '#343a40',     // メインテキスト
+                        primaryBorderColor: '#dee2e6',   // 箱の枠線
+                        lineColor: '#adb5bd',            // 矢印の線
+                        secondaryColor: '#f8f9fa',       // サブの箱の背景
+                        tertiaryColor: '#f1f3f5',
+                        clusterBkg: '#f8f9fa',           // グループの背景色（ゲシュタルト要因）
+                        clusterBorder: '#e9ecef',        // グループの枠線
+                        fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif',
+                    },
+                    flowchart: {
+                        curve: 'basis',     // 線の交差ノイズを減らす滑らかな曲線
+                        nodeSpacing: 70,    // 箱と箱の横の余白を大きく確保
+                        rankSpacing: 70,    // 箱と箱の縦の余白を大きく確保
+                        padding: 24
+                    },
                     securityLevel: 'loose',
                 });
 
                 const urlParams = new URLSearchParams(window.location.search);
-                
-                // 【修正点】URLSearchParamsは自動でデコード済みのテキストを返すため、そのまま使用します
                 const mermaidCode = urlParams.get('code');
 
                 if (!mermaidCode) {
