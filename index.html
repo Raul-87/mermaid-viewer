@@ -14,10 +14,12 @@
         #graphDiv { 
             background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); 
             padding: 40px; border-radius: 24px; border: 1px solid #f1f3f5; box-shadow: 0 12px 48px rgba(0, 0, 0, 0.06); 
-            max-width: 100%; overflow: auto; display: flex; justify-content: center;
+            max-width: 100%; overflow: auto; display: flex; justify-content: center; flex-direction: column;
         }
-        .error-msg { color: #ff3b30; font-size: 14px; font-weight: 500; word-break: break-all; }
+        .error-msg { color: #ff3b30; font-size: 14px; font-weight: 500; word-break: break-all; margin-bottom: 12px; }
         .empty-msg { color: #868e96; font-size: 15px; font-weight: 500; letter-spacing: 0.5px;}
+        /* エラー解析用のデバッグコンソール表示 */
+        .debug-log { background: #212529; color: #40c057; padding: 16px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; width: 100%; box-sizing: border-box; overflow-x: auto; line-height: 1.4;}
     </style>
 </head>
 <body>
@@ -35,40 +37,18 @@
         const container = document.getElementById('graphDiv');
 
         (async () => {
+            let sanitizedCode = ""; // エラー時にも参照できるようスコープを外に定義
             try {
-                // Mermaidの初期化設定（指定のカラーパレットを適用）
                 mermaid.initialize({ 
                     startOnLoad: false, 
                     theme: 'base',
                     themeVariables: {
-                        // --- 共通の基本カラー設定 ---
-                        primaryColor: '#CDBF9F',       // Beige
-                        primaryTextColor: '#343a40', 
-                        primaryBorderColor: '#b0a48a', // Beigeのボーダー用
-                        lineColor: '#76BEE0',          // Blue (線や矢印)
-                        secondaryColor: '#FAE09E',     // Yellow
-                        tertiaryColor: '#F28EA7',      // Pink
-                        clusterBkg: '#f8f9fa', 
-                        clusterBorder: '#e9ecef', 
+                        primaryColor: '#CDBF9F', primaryTextColor: '#343a40', primaryBorderColor: '#b0a48a', lineColor: '#76BEE0', 
+                        secondaryColor: '#FAE09E', tertiaryColor: '#F28EA7',
                         fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif',
-                        
-                        // --- ガントチャート専用のカラー設定 ---
-                        taskBkgColor: '#76BEE0',       // 通常タスク (Blue)
-                        taskBorderColor: '#67a6c4',
-                        taskTextColor: '#ffffff',
-                        activeTaskBkgColor: '#FAE09E', // 進行中タスク [active] (Yellow)
-                        activeTaskBorderColor: '#dbc58a',
-                        doneTaskBkgColor: '#CDBF9F',   // 完了タスク [done] (Beige)
-                        doneTaskBorderColor: '#b0a48a',
-                        critBkgColor: '#F28EA7',       // 重要タスク [crit] (Pink)
-                        critBorderColor: '#d17a8f',
-                        todayLineColor: '#F28EA7',     // 現在日時の線 (Pink)
                     },
                     flowchart: { curve: 'basis', nodeSpacing: 70, rankSpacing: 70, padding: 24 },
-                    gantt: { 
-                        titleTopMargin: 25, barHeight: 25, barGap: 4, topPadding: 50, leftPadding: 75,
-                        gridLineStartPadding: 35, fontSize: 13, sectionFontSize: 14, numberSectionStyles: 4
-                    },
+                    gantt: { titleTopMargin: 25, barHeight: 25, barGap: 4, topPadding: 50, leftPadding: 75, fontSize: 13, sectionFontSize: 14 },
                     securityLevel: 'loose',
                 });
 
@@ -80,37 +60,34 @@
                     return;
                 }
 
-                // URLエンコードの不整合対策（明示的デコード）
-                try {
-                    rawCode = decodeURIComponent(rawCode);
-                } catch (e) {
-                    console.warn('URLデコードに失敗しました。生の文字列をそのまま使用します。', e);
-                }
+                // 念のためのデコード処理
+                try { rawCode = decodeURIComponent(rawCode); } catch (e) {}
 
-                // 強力なサニタイズ処理
-                const sanitizedCode = rawCode
-                    .replace(/\r\n|\r/g, '\n')           // 1. 改行コードを \n に統一 (iOS対策)
-                    .replace(/[\u00A0\u3000]/g, ' ')     // 2. NBSPや全角スペースを半角スペースに
-                    .replace(/[\u200B-\u200D\uFEFF]/g, '') // 3. ゼロ幅スペースやBOMを削除
+                // ★ 究極のサニタイズ ★
+                sanitizedCode = rawCode
+                    // 1. iOS特有の行区切り(\u2028)・段落区切り(\u2029)を \n に完全置換 (これが今回の元凶)
+                    .replace(/\r\n|\r|\u2028|\u2029/g, '\n')
+                    // 2. NBSPや全角スペースを半角スペースに
+                    .replace(/[\u00A0\u3000]/g, ' ')
+                    // 3. ゼロ幅文字やBOMを完全排除
+                    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                    // 4. 行末の空白を取り除き、空行を削除
                     .split('\n')
-                    .map(line => line.trimEnd())         // 4. 行末の不要なスペースを削除
-                    .filter(line => line.trim().length > 0) // 5. 空行を削除（パースエラー防止）
+                    .map(line => line.trimEnd())
+                    .filter(line => line.trim().length > 0)
                     .join('\n');
 
-                // デバッグ用出力 (SafariのWebインスペクタで確認可能)
-                console.log('--- Sanitized Mermaid Code ---');
-                console.log(sanitizedCode);
-
-                // レンダリング実行
                 const uniqueId = 'mermaid-' + Date.now();
                 const { svg } = await mermaid.render(uniqueId, sanitizedCode);
                 
                 container.innerHTML = svg;
 
             } catch (error) {
-                // エラー内容を画面に表示
-                container.innerHTML = `<div class="error-msg">レンダリングエラー:<br>${error.message}</div>`;
-                console.error("Mermaid Render Error:", error);
+                // エラー内容と、サニタイズ後の「実際にパースしようとした文字列」を黒背景で表示
+                container.innerHTML = `
+                    <div class="error-msg">レンダリングエラー:<br>${error.message}</div>
+                    <div class="debug-log">【デバッグログ: 変換後のコード】\n${sanitizedCode}</div>
+                `;
             }
         })();
     </script>
