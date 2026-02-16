@@ -5,9 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mermaid Viewer</title>
     <style>
-        /* 余白をなくし、中央に配置するスタイル */
-        body { margin: 0; padding: 10px; font-family: sans-serif; background-color: #f9f9f9; }
-        #graphDiv { display: flex; justify-content: center; align-items: center; min-height: 90vh; }
+        body { margin: 0; padding: 0; font-family: sans-serif; background-color: #f9f9f9; }
+        
+        /* 修正ポイント1: 無理な中央寄せをやめ、スクロール可能な領域にする */
+        #graphDiv { 
+            width: 100vw; 
+            height: 100vh; 
+            overflow: auto; /* 指で上下左右にスクロール可能にする */
+            padding: 20px; 
+            box-sizing: border-box;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+        
+        /* 修正ポイント2: SVGがスマホの画面幅に合わせて勝手に極小に縮むのを防ぐ */
+        #graphDiv svg {
+            min-width: 800px; /* 最低でもこの幅を保ち、文字の潰れを防ぐ */
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -18,26 +34,26 @@
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
-        // 1. カラーパレットの初期化設定
         mermaid.initialize({
             startOnLoad: false,
             theme: 'base',
             themeVariables: {
-                primaryColor: '#F28EA7',       // Pink
-                secondaryColor: '#FAE09E',     // Yellow
-                tertiaryColor: '#CDBF9F',      // Beige
-                primaryBorderColor: '#4FDBB2', // Teal
-                lineColor: '#76BEE0',          // Blue
-                textColor: '#333333'
-            }
+                primaryColor: '#F28EA7',
+                secondaryColor: '#FAE09E',
+                tertiaryColor: '#CDBF9F',
+                primaryBorderColor: '#4FDBB2',
+                lineColor: '#76BEE0',
+                textColor: '#333333',
+                fontSize: '16px' /* ベースの文字サイズを少し大きく固定 */
+            },
+            /* 修正ポイント3: Mermaid側で勝手に最大幅に縮小する機能をオフにする */
+            flowchart: { useMaxWidth: false },
+            gantt: { useMaxWidth: false, fontSize: 14 }
         });
 
-        // 2. UTF-8対応の安全なBase64デコード関数
         function decodeBase64UTF8(base64) {
             try {
-                // URLパラメータで半角スペースに変換されてしまった '+' を復元する（超重要）
                 const safeBase64 = base64.replace(/ /g, '+');
-                
                 const binString = window.atob(safeBase64);
                 const bytes = new Uint8Array(binString.length);
                 for (let i = 0; i < binString.length; i++) {
@@ -50,7 +66,6 @@
             }
         }
 
-        // 3. サニタイズ関数（iOSのスマート句読点対策）
         function sanitizeMermaidCode(code) {
             if (!code) return '';
             let s = code;
@@ -67,19 +82,11 @@
             return s.trim();
         }
 
-        // 4. メインのレンダリング処理
         async function renderGraph() {
             const container = document.getElementById('graphDiv');
             const urlParams = new URLSearchParams(window.location.search);
-            
             const b64Code = urlParams.get('b64');
-            let rawCode = '';
-
-            if (b64Code) {
-                rawCode = decodeBase64UTF8(b64Code);
-            } else {
-                rawCode = urlParams.get('code');
-            }
+            let rawCode = b64Code ? decodeBase64UTF8(b64Code) : urlParams.get('code');
 
             if (!rawCode) {
                 container.innerHTML = '<p style="color: gray;">コードが入力されていません。</p>';
@@ -91,11 +98,7 @@
                 const { svg } = await mermaid.render('mermaid-svg', cleanCode);
                 container.innerHTML = svg;
             } catch (error) {
-                console.error("Mermaid Render Error:", error);
-                const safeErrorMsg = error.message
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
+                const safeErrorMsg = error.message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 container.innerHTML = `<pre style="color: #D8000C; background: #FFD2D2; padding: 10px;">Render Error:\n${safeErrorMsg}</pre>`;
             }
         }
