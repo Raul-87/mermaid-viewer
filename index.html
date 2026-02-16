@@ -2,26 +2,21 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mermaid Viewer</title>
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; background-color: #f9f9f9; }
-        
-        /* 修正ポイント1: 無理な中央寄せをやめ、スクロール可能な領域にする */
+        body { margin: 0; padding: 10px; font-family: sans-serif; background-color: #f9f9f9; }
+        /* 画面中央に全体を収めるスタイルに復元 */
         #graphDiv { 
-            width: 100vw; 
-            height: 100vh; 
-            overflow: auto; /* 指で上下左右にスクロール可能にする */
-            padding: 20px; 
-            box-sizing: border-box;
-            display: flex;
-            align-items: flex-start;
-            justify-content: flex-start;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 90vh; 
+            width: 100%;
         }
-        
-        /* 修正ポイント2: SVGがスマホの画面幅に合わせて勝手に極小に縮むのを防ぐ */
+        /* SVGが画面幅を超えないように設定 */
         #graphDiv svg {
-            min-width: 800px; /* 最低でもこの幅を保ち、文字の潰れを防ぐ */
+            max-width: 100%;
             height: auto;
         }
     </style>
@@ -34,6 +29,7 @@
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
+        // カラーパレット設定（変更なし）
         mermaid.initialize({
             startOnLoad: false,
             theme: 'base',
@@ -43,12 +39,8 @@
                 tertiaryColor: '#CDBF9F',
                 primaryBorderColor: '#4FDBB2',
                 lineColor: '#76BEE0',
-                textColor: '#333333',
-                fontSize: '16px' /* ベースの文字サイズを少し大きく固定 */
-            },
-            /* 修正ポイント3: Mermaid側で勝手に最大幅に縮小する機能をオフにする */
-            flowchart: { useMaxWidth: false },
-            gantt: { useMaxWidth: false, fontSize: 14 }
+                textColor: '#333333'
+            }
         });
 
         function decodeBase64UTF8(base64) {
