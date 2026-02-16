@@ -1,111 +1,106 @@
-<script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mermaid Viewer</title>
+    <style>
+        /* 余白をなくし、中央に配置するスタイル */
+        body { margin: 0; padding: 10px; font-family: sans-serif; background-color: #f9f9f9; }
+        #graphDiv { display: flex; justify-content: center; align-items: center; min-height: 90vh; }
+    </style>
+</head>
+<body>
+    <div id="graphDiv">
+        <p style="color: gray;">処理中...</p>
+    </div>
 
-    // 1. 指定の5色カラーパレットを用いた初期化
-    mermaid.initialize({
-        startOnLoad: false,
-        theme: 'base',
-        themeVariables: {
-            primaryColor: '#F28EA7',       // Pink: メインノード等
-            secondaryColor: '#FAE09E',     // Yellow: サブ要素
-            tertiaryColor: '#CDBF9F',      // Beige: 背景・その他
-            primaryBorderColor: '#4FDBB2', // Teal: 枠線など
-            lineColor: '#76BEE0',          // Blue: エッジ（線）など
-            textColor: '#333333'
-        }
-    });
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
-    // 2. UTF-8対応の安全なBase64デコード関数
-    // （日本語の文字化けを防ぐため、atob単体ではなくTextDecoderを使用）
-    function decodeBase64UTF8(base64) {
-        try {
-            const binString = window.atob(base64);
-            const bytes = new Uint8Array(binString.length);
-            for (let i = 0; i < binString.length; i++) {
-                bytes[i] = binString.charCodeAt(i);
+        // 1. カラーパレットの初期化設定
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#F28EA7',       // Pink
+                secondaryColor: '#FAE09E',     // Yellow
+                tertiaryColor: '#CDBF9F',      // Beige
+                primaryBorderColor: '#4FDBB2', // Teal
+                lineColor: '#76BEE0',          // Blue
+                textColor: '#333333'
             }
-            return new TextDecoder('utf-8').decode(bytes);
-        } catch (e) {
-            console.error("Base64 Decode Error:", e);
-            return null;
-        }
-    }
+        });
 
-    // 3. 画面フリーズを起こさない堅牢なサニタイズ関数
-    // （Base64で安全に受信した後、入力元のiOSエディタ由来のスマート句読点を処理する）
-    function sanitizeMermaidCode(code) {
-        if (!code) return '';
-
-        let s = code;
-
-        // A. 制御文字・ゼロ幅文字の除去（画面フリーズ対策）
-        s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
-
-        // B. iOSスマート句読点の無害化（ASCIIのプレーンな記号へ強制変換）
-        s = s.replace(/[\u2018\u2019]/g, "'"); // シングルクォート
-        s = s.replace(/[\u201C\u201D]/g, '"'); // ダブルクォート
-        s = s.replace(/\u2014/g, '--');        // エムダッシュ -> ダブルハイフン
-        s = s.replace(/\u2013/g, '-');         // エンダッシュ -> シングルハイフン
-        s = s.replace(/\u2212/g, '-');         // マイナス記号 -> シングルハイフン
-
-        // C. 改行コードの統一
-        s = s.replace(/(\r\n|\r|[\u2028\u2029])/g, '\n');
-
-        // D. 全角スペースとNBSPの半角スペース化
-        s = s.replace(/[\u3000\u00A0]/g, ' ');
-
-        // E. Mermaidコメント行(%%)の安全な削除
-        // 独立したコメント行を正規表現のバックトラック問題なしに削除
-        s = s.replace(/^[ \t]*%%.*$/gm, '');
-
-        // 連続する空行を1行にまとめる
-        s = s.replace(/\n{2,}/g, '\n');
-
-        return s.trim();
-    }
-
-    // 4. メインのレンダリング処理
-    async function renderGraph() {
-        const container = document.getElementById('graphDiv');
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        // Base64パラメータを優先取得、なければ旧来のcodeパラメータをフォールバックとして取得
-        const b64Code = urlParams.get('b64');
-        let rawCode = '';
-
-        if (b64Code) {
-            rawCode = decodeBase64UTF8(b64Code);
-        } else {
-            rawCode = urlParams.get('code');
+        // 2. UTF-8対応の安全なBase64デコード関数
+        function decodeBase64UTF8(base64) {
+            try {
+                // URLパラメータで半角スペースに変換されてしまった '+' を復元する（超重要）
+                const safeBase64 = base64.replace(/ /g, '+');
+                
+                const binString = window.atob(safeBase64);
+                const bytes = new Uint8Array(binString.length);
+                for (let i = 0; i < binString.length; i++) {
+                    bytes[i] = binString.charCodeAt(i);
+                }
+                return new TextDecoder('utf-8').decode(bytes);
+            } catch (e) {
+                console.error("Base64 Decode Error:", e);
+                return null;
+            }
         }
 
-        if (!rawCode) {
-            container.innerHTML = '<p style="color: gray;">コードが入力されていません。URLパラメータを確認してください。</p>';
-            return;
+        // 3. サニタイズ関数（iOSのスマート句読点対策）
+        function sanitizeMermaidCode(code) {
+            if (!code) return '';
+            let s = code;
+            s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+            s = s.replace(/[\u2018\u2019]/g, "'");
+            s = s.replace(/[\u201C\u201D]/g, '"');
+            s = s.replace(/\u2014/g, '--');
+            s = s.replace(/\u2013/g, '-');
+            s = s.replace(/\u2212/g, '-');
+            s = s.replace(/(\r\n|\r|[\u2028\u2029])/g, '\n');
+            s = s.replace(/[\u3000\u00A0]/g, ' ');
+            s = s.replace(/^[ \t]*%%.*$/gm, '');
+            s = s.replace(/\n{2,}/g, '\n');
+            return s.trim();
         }
 
-        try {
-            // 受信したコードをサニタイズ
-            const cleanCode = sanitizeMermaidCode(rawCode);
+        // 4. メインのレンダリング処理
+        async function renderGraph() {
+            const container = document.getElementById('graphDiv');
+            const urlParams = new URLSearchParams(window.location.search);
             
-            // デバッグ用: サニタイズ後の最終コードを確認（動作が安定したら削除してOKです）
-            console.log("Sanitized Code Ready for Render:\n", cleanCode);
+            const b64Code = urlParams.get('b64');
+            let rawCode = '';
 
-            // Mermaidのレンダリング実行
-            const { svg } = await mermaid.render('mermaid-svg', cleanCode);
-            container.innerHTML = svg;
+            if (b64Code) {
+                rawCode = decodeBase64UTF8(b64Code);
+            } else {
+                rawCode = urlParams.get('code');
+            }
 
-        } catch (error) {
-            console.error("Mermaid Render Error:", error);
-            // DOM破壊防止のためのエスケープ処理
-            const safeErrorMsg = error.message
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-            container.innerHTML = `<pre style="color: #D8000C; background: #FFD2D2; padding: 10px; border-radius: 5px;">Render Error:\n${safeErrorMsg}</pre>`;
+            if (!rawCode) {
+                container.innerHTML = '<p style="color: gray;">コードが入力されていません。</p>';
+                return;
+            }
+
+            try {
+                const cleanCode = sanitizeMermaidCode(rawCode);
+                const { svg } = await mermaid.render('mermaid-svg', cleanCode);
+                container.innerHTML = svg;
+            } catch (error) {
+                console.error("Mermaid Render Error:", error);
+                const safeErrorMsg = error.message
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                container.innerHTML = `<pre style="color: #D8000C; background: #FFD2D2; padding: 10px;">Render Error:\n${safeErrorMsg}</pre>`;
+            }
         }
-    }
 
-    // 実行
-    renderGraph();
-</script>
+        renderGraph();
+    </script>
+</body>
+</html>
