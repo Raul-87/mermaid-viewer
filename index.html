@@ -6,7 +6,7 @@
     <title>Mermaid Viewer</title>
     <style>
         body { margin: 0; padding: 10px; font-family: sans-serif; background-color: #f9f9f9; }
-        /* 画面中央に全体を収めるスタイルに復元 */
+        /* 初期状態で全体を中央に収める */
         #graphDiv { 
             display: flex; 
             justify-content: center; 
@@ -14,7 +14,7 @@
             min-height: 90vh; 
             width: 100%;
         }
-        /* SVGが画面幅を超えないように設定 */
+        /* 画面幅を超えないように設定 */
         #graphDiv svg {
             max-width: 100%;
             height: auto;
@@ -29,22 +29,30 @@
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
-        // カラーパレット設定（変更なし）
+        // 1. カラーパレットと矢印のスタイル初期化
         mermaid.initialize({
             startOnLoad: false,
             theme: 'base',
             themeVariables: {
-                primaryColor: '#F28EA7',
-                secondaryColor: '#FAE09E',
-                tertiaryColor: '#CDBF9F',
-                primaryBorderColor: '#4FDBB2',
-                lineColor: '#76BEE0',
+                primaryColor: '#F28EA7',       // Pink
+                secondaryColor: '#FAE09E',     // Yellow
+                tertiaryColor: '#CDBF9F',      // Beige
+                primaryBorderColor: '#4FDBB2', // Teal
+                lineColor: '#76BEE0',          // Blue
                 textColor: '#333333'
-            }
+            },
+            flowchart: { 
+                useMaxWidth: false,
+                // ▼ 矢印を曲線ではなく直角に曲がる直線（ポリライン）に統一 ▼
+                curve: 'stepAfter' 
+            },
+            gantt: { useMaxWidth: false, fontSize: 14 }
         });
 
+        // 2. UTF-8対応の安全なBase64デコード関数
         function decodeBase64UTF8(base64) {
             try {
+                // URLパラメータで半角スペースに変換されてしまった '+' を復元
                 const safeBase64 = base64.replace(/ /g, '+');
                 const binString = window.atob(safeBase64);
                 const bytes = new Uint8Array(binString.length);
@@ -58,22 +66,24 @@
             }
         }
 
+        // 3. サニタイズ関数（iOSスマート句読点の無害化）
         function sanitizeMermaidCode(code) {
             if (!code) return '';
             let s = code;
-            s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
-            s = s.replace(/[\u2018\u2019]/g, "'");
-            s = s.replace(/[\u201C\u201D]/g, '"');
-            s = s.replace(/\u2014/g, '--');
-            s = s.replace(/\u2013/g, '-');
-            s = s.replace(/\u2212/g, '-');
+            s = s.replace(/[\u200B-\u200D\uFEFF]/g, ''); // ゼロ幅文字除去
+            s = s.replace(/[\u2018\u2019]/g, "'");       // シングルクォート
+            s = s.replace(/[\u201C\u201D]/g, '"');       // ダブルクォート
+            s = s.replace(/\u2014/g, '--');              // エムダッシュ -> ハイフン
+            s = s.replace(/\u2013/g, '-');               // エンダッシュ -> ハイフン
+            s = s.replace(/\u2212/g, '-');               // マイナス記号 -> ハイフン
             s = s.replace(/(\r\n|\r|[\u2028\u2029])/g, '\n');
-            s = s.replace(/[\u3000\u00A0]/g, ' ');
-            s = s.replace(/^[ \t]*%%.*$/gm, '');
+            s = s.replace(/[\u3000\u00A0]/g, ' ');       // 全角スペース -> 半角スペース
+            s = s.replace(/^[ \t]*%%.*$/gm, '');         // コメント行の削除
             s = s.replace(/\n{2,}/g, '\n');
             return s.trim();
         }
 
+        // 4. レンダリング処理
         async function renderGraph() {
             const container = document.getElementById('graphDiv');
             const urlParams = new URLSearchParams(window.location.search);
@@ -90,6 +100,7 @@
                 const { svg } = await mermaid.render('mermaid-svg', cleanCode);
                 container.innerHTML = svg;
             } catch (error) {
+                console.error("Mermaid Render Error:", error);
                 const safeErrorMsg = error.message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 container.innerHTML = `<pre style="color: #D8000C; background: #FFD2D2; padding: 10px;">Render Error:\n${safeErrorMsg}</pre>`;
             }
